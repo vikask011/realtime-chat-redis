@@ -1,0 +1,27 @@
+{
+  "test": "load",
+  "timestamp": "2026-05-08T18:34:25.730Z",
+  "config": {
+    "CONCURRENT_USERS": 50,
+    "MESSAGES_PER_USER": 20,
+    "RAMP_UP_MS": 2000
+  },
+  "results": {
+    "connected": 50,
+    "failed": 0,
+    "connectionRate": "100.0%",
+    "totalSent": 1000,
+    "totalRecv": 981,
+    "lossRate": "1.9%",
+    "throughput": "185.5 msg/s",
+    "latency": {
+      "min": 55,
+      "avg": 255.04,
+      "p50": 264,
+      "p90": 350,
+      "p95": 359,
+      "p99": 375,
+      "max": 385
+    }
+  }
+}
