@@ -33,26 +33,7 @@ function groupByDate(messages) {
   return groups;
 }
 
-// Double tick: show if msg is from me AND recipient is online (delivered indicator)
-function TickIcon({ delivered }) {
-  if (delivered) {
-    // Double tick (blue-ish)
-    return (
-      <svg className="msg-check msg-check-delivered" width="16" height="10" viewBox="0 0 16 10" fill="none">
-        <path d="M1 5l3.5 3.5L11 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M5 5l3.5 3.5L15 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    );
-  }
-  // Single tick (sent)
-  return (
-    <svg className="msg-check" width="14" height="10" viewBox="0 0 14 10" fill="none">
-      <path d="M1 5l3.5 3.5L13 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
-
-export default function ChatWindow({ selectedUser, onBack }) {
+export default function GroupChatWindow({ selectedGroup, onBack }) {
   const { user, token } = useAuth();
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
@@ -61,46 +42,39 @@ export default function ChatWindow({ selectedUser, onBack }) {
   const inputRef = useRef(null);
 
   useEffect(() => {
-    if (!selectedUser) return;
+    if (!selectedGroup) return;
     setMessages([]);
 
     const socket = getSocket(user.username);
 
     axios
-      .get(`${SERVER}/api/messages/${selectedUser.username}`, {
+      .get(`${SERVER}/api/groups/${selectedGroup._id}/messages`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => {
         setMessages(res.data);
-        socket.emit("get_live_history", { with: selectedUser.username });
+        socket.emit("get_live_group_history", { groupId: selectedGroup._id });
       })
       .catch(() => {});
-  }, [selectedUser?.username]);
+  }, [selectedGroup?._id]);
 
   useEffect(() => {
-    if (!selectedUser) return;
+    if (!selectedGroup) return;
     const socket = getSocket(user.username);
 
-    const onLiveHistory = (buffered) => {
-      if (!buffered.length) return;
+    const onLiveHistory = ({ groupId, messages: buffered }) => {
+      if (groupId !== selectedGroup._id || !buffered.length) return;
       setMessages((prev) => {
         const existingKeys = new Set(prev.map((m) => `${m.from}${m.text}${m.createdAt}`));
-        const fresh = buffered
-          .filter(
-            (m) =>
-              (m.from === user.username && m.to === selectedUser.username) ||
-              (m.from === selectedUser.username && m.to === user.username)
-          )
-          .filter((m) => !existingKeys.has(`${m.from}${m.text}${m.createdAt}`));
+        const fresh = buffered.filter(
+          (m) => !existingKeys.has(`${m.from}${m.text}${m.createdAt}`)
+        );
         return [...prev, ...fresh];
       });
     };
 
     const onReceive = (msg) => {
-      const isRelevant =
-        (msg.from === user.username && msg.to === selectedUser.username) ||
-        (msg.from === selectedUser.username && msg.to === user.username);
-      if (!isRelevant) return;
+      if (msg.toGroup !== selectedGroup._id) return;
       setMessages((prev) => {
         const last = prev[prev.length - 1];
         if (last && last.from === msg.from && last.text === msg.text && last.createdAt === msg.createdAt)
@@ -109,44 +83,30 @@ export default function ChatWindow({ selectedUser, onBack }) {
       });
     };
 
-    socket.on("live_history", onLiveHistory);
-    socket.on("receive_message", onReceive);
+    socket.on("live_group_history", onLiveHistory);
+    socket.on("receive_group_message", onReceive);
 
     return () => {
-      socket.off("live_history", onLiveHistory);
-      socket.off("receive_message", onReceive);
+      socket.off("live_group_history", onLiveHistory);
+      socket.off("receive_group_message", onReceive);
     };
-  }, [selectedUser?.username]);
+  }, [selectedGroup?._id]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const send = () => {
-    if (!text.trim() || !selectedUser || sending) return;
+    if (!text.trim() || !selectedGroup || sending) return;
     setSending(true);
     const socket = getSocket(user.username);
-    socket.emit("send_message", { to: selectedUser.username, text: text.trim() });
+    socket.emit("send_group_message", { groupId: selectedGroup._id, text: text.trim() });
     setText("");
     setSending(false);
     inputRef.current?.focus();
   };
 
-  if (!selectedUser) {
-    return (
-      <div className="chat-empty">
-        <div className="chat-empty-inner">
-          <div className="chat-empty-icon">
-            <svg width="56" height="56" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-          </div>
-          <h3>Pick a conversation</h3>
-          <p>Select someone from the sidebar to start chatting</p>
-        </div>
-      </div>
-    );
-  }
+  if (!selectedGroup) return null;
 
   const grouped = groupByDate(messages);
 
@@ -159,22 +119,22 @@ export default function ChatWindow({ selectedUser, onBack }) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <div className="avatar avatar-sm">
-          {selectedUser.username[0].toUpperCase()}
-          <span className={`avatar-dot ${selectedUser.online ? "online" : "offline"}`} />
-        </div>
+        <div className="avatar avatar-sm group-avatar">#</div>
         <div className="chat-header-info">
-          <p className="chat-header-name">{selectedUser.username}</p>
-          <p className={`chat-header-status ${selectedUser.online ? "status-online" : "status-offline"}`}>
-            {selectedUser.online ? (
-              <>
-                <span className="pulse-dot" />
-                Active now
-              </>
-            ) : (
-              "Offline"
-            )}
+          <p className="chat-header-name">{selectedGroup.name}</p>
+          <p className="chat-header-status status-online">
+            {selectedGroup.members.length} members
           </p>
+        </div>
+        <div className="group-members-pill">
+          {selectedGroup.members.slice(0, 3).map((m) => (
+            <span key={m} className="group-member-chip" title={m}>
+              {m[0].toUpperCase()}
+            </span>
+          ))}
+          {selectedGroup.members.length > 3 && (
+            <span className="group-member-chip muted">+{selectedGroup.members.length - 3}</span>
+          )}
         </div>
       </div>
 
@@ -182,9 +142,9 @@ export default function ChatWindow({ selectedUser, onBack }) {
       <div className="chat-messages">
         {messages.length === 0 && (
           <div className="messages-empty">
-            <div className="messages-empty-avatar">{selectedUser.username[0].toUpperCase()}</div>
-            <p className="messages-empty-name">{selectedUser.username}</p>
-            <p className="messages-empty-sub">No messages yet. Say hello! 👋</p>
+            <div className="messages-empty-avatar">#</div>
+            <p className="messages-empty-name">{selectedGroup.name}</p>
+            <p className="messages-empty-sub">No messages yet. Start the conversation! 🚀</p>
           </div>
         )}
 
@@ -199,20 +159,23 @@ export default function ChatWindow({ selectedUser, onBack }) {
 
           const msg = item.msg;
           const isMe = msg.from === user.username;
-          // Double tick when: msg is from me AND the other user is currently online
-          // (approximation: if they're online they've received it)
-          const delivered = isMe && selectedUser.online;
 
           return (
             <div key={i} className={`msg-row ${isMe ? "msg-row-me" : "msg-row-them"}`}>
               {!isMe && (
-                <div className="msg-avatar">{msg.from[0].toUpperCase()}</div>
+                <div className="msg-avatar" title={msg.from}>{msg.from[0].toUpperCase()}</div>
               )}
               <div className={`msg-bubble ${isMe ? "bubble-me" : "bubble-them"}`}>
+                {!isMe && <span className="msg-sender-name">{msg.from}</span>}
                 <p className="msg-text">{msg.text}</p>
                 <span className="msg-time">{formatTime(msg.createdAt)}</span>
               </div>
-              {isMe && <TickIcon delivered={delivered} />}
+              {isMe && (
+                <svg className="msg-check msg-check-delivered" width="16" height="10" viewBox="0 0 16 10" fill="none">
+                  <path d="M1 5l3.5 3.5L11 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M5 5l3.5 3.5L15 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
             </div>
           );
         })}
@@ -221,18 +184,13 @@ export default function ChatWindow({ selectedUser, onBack }) {
 
       {/* Input */}
       <div className="chat-input-bar">
-        <button className="input-action-btn" title="Emoji">
-          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-            <circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M8 13s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" strokeWidth="3" strokeLinecap="round" /><line x1="15" y1="9" x2="15.01" y2="9" strokeWidth="3" strokeLinecap="round" />
-          </svg>
-        </button>
         <input
           ref={inputRef}
           type="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-          placeholder={`Message ${selectedUser.username}…`}
+          placeholder={`Message #${selectedGroup.name}…`}
           className="chat-input"
         />
         <button

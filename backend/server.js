@@ -10,6 +10,7 @@ const initSocket = require("./socket");
 const authRoutes    = require("./routes/auth");
 const userRoutes    = require("./routes/user");
 const messageRoutes = require("./routes/message");
+const groupRoutes   = require("./routes/group");
 
 const app    = express();
 const server = http.createServer(app);
@@ -40,6 +41,7 @@ app.use(express.json());
 app.use("/api/auth",     authRoutes);
 app.use("/api/users",    userRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/groups",   groupRoutes);
 app.get("/health", (_, res) => res.json({ status: "ok" }));
 
 const io = new Server(server, {

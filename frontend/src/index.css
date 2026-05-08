@@ -898,12 +898,6 @@ html, body, #root {
 .bubble-me .msg-time { color: rgba(255,255,255,0.7); }
 .bubble-them .msg-time { color: var(--text-3); }
 
-.msg-check {
-  color: rgba(99,102,241,0.5);
-  margin-bottom: 4px;
-  flex-shrink: 0;
-}
-
 /* Input bar */
 .chat-input-bar {
   display: flex;
@@ -977,20 +971,348 @@ html, body, #root {
 }
 
 /* ─── Responsive: collapse left panel on small screens ────── */
+/* ─── Back button (hidden on desktop) ──────────────────────── */
+.back-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.back-btn:hover { background: var(--bg-2); color: var(--text-1); }
+
+/* Double tick styling */
+.msg-check {
+  color: rgba(150,150,180,0.6);
+  margin-bottom: 4px;
+  flex-shrink: 0;
+  align-self: flex-end;
+}
+.msg-check-delivered {
+  color: #6366f1;
+}
+
+/* chat-main wrapper */
+.chat-main {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+}
+.chat-main > * { flex: 1; }
+
 @media (max-width: 900px) {
   .login-left { display: none; }
   .login-right { width: 100%; }
 }
 
-@media (max-width: 680px) {
-  .sidebar { width: 72px; }
-  .sidebar-brand-name,
-  .sidebar-me-info,
-  .sidebar-search-wrap,
-  .sidebar-stats,
-  .user-item-info,
-  .logout-btn span { display: none; }
-  .user-item { justify-content: center; padding: 10px; }
-  .sidebar-me { justify-content: center; padding: 10px; }
-  .sidebar-header { justify-content: center; }
+/* ─── Mobile Layout (≤640px) ────────────────────────────────── */
+@media (max-width: 640px) {
+  /* Full height, no overflow */
+  html, body, #root { height: 100%; overflow: hidden; }
+
+  /* chat-root becomes a stacking context */
+  .chat-root {
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Sidebar takes full width, slides in/out */
+  .sidebar {
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    z-index: 10;
+    transform: translateX(0);
+    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    border-right: none;
+  }
+
+  /* When chat is visible, sidebar slides left off screen */
+  .chat-main.mobile-chat-visible ~ .sidebar,
+  .sidebar.mobile-sidebar-hidden {
+    transform: translateX(-100%);
+  }
+
+  /* Reorder: sidebar first in DOM is fine; chat-main is positioned */
+  .chat-main {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .chat-main.mobile-chat-visible {
+    transform: translateX(0);
+  }
+
+  .chat-main.mobile-chat-hidden {
+    transform: translateX(100%);
+  }
+
+  /* Show back button on mobile */
+  .back-btn { display: flex; }
+
+  /* Larger touch targets for user items */
+  .user-item { padding: 12px 16px; }
+
+  /* Input bar gets a bit more breathing room */
+  .chat-input-bar { padding: 10px 12px; }
+
+  /* Tighten sidebar header */
+  .sidebar-header { padding: 14px 16px; }
+
+  /* Chat messages padding */
+  .chat-messages { padding: 16px 14px; }
+
+  /* Bubbles can be wider on small screens */
+  .msg-bubble { max-width: 82%; }
+
+  /* Tabs more compact */
+  .sidebar-tabs { padding: 6px 10px 0; gap: 6px; }
+
+  /* Modal fills more of screen */
+  .modal { width: 92vw; padding: 20px 18px; }
+  .modal-member-list { max-height: 160px; }
 }
+/* ─── Group Chat & Tabs ─────────────────────────────────────── */
+
+.sidebar-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px 12px 0;
+}
+
+.sidebar-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.18s;
+  position: relative;
+}
+
+.sidebar-tab:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.tab-active {
+  background: var(--accent-glow) !important;
+  color: var(--accent) !important;
+}
+
+.tab-badge {
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 10px;
+  min-width: 16px;
+  text-align: center;
+}
+
+/* Create group button inline in search bar */
+.create-group-btn {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.create-group-btn:hover { background: var(--accent-glow); }
+
+.create-group-link {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 0.8rem;
+  cursor: pointer;
+  margin-top: 4px;
+  text-decoration: underline;
+}
+
+/* Group avatar */
+.group-avatar {
+  background: linear-gradient(135deg, #f59e0b, #ef4444) !important;
+  color: #fff !important;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* Group members pill in chat header */
+.group-members-pill {
+  display: flex;
+  align-items: center;
+  gap: -6px;
+  margin-left: auto;
+}
+
+.group-member-chip {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--surface);
+  margin-left: -6px;
+}
+.group-member-chip:first-child { margin-left: 0; }
+.group-member-chip.muted {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.65rem;
+}
+
+/* Sender name in group messages */
+.msg-sender-name {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* ─── Create Group Modal ────────────────────────────────────── */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  width: 360px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.modal-header h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.modal-close:hover { background: var(--surface-2); }
+
+.modal-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  margin-bottom: 16px;
+}
+.modal-input:focus { border-color: var(--accent); }
+
+.modal-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.modal-member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+.modal-member-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 0.875rem;
+  transition: background 0.15s;
+}
+.modal-member-row:hover { background: var(--surface-2); }
+.modal-member-row input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.modal-create-btn {
+  width: 100%;
+  padding: 11px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+}
+.modal-create-btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+.modal-create-btn:disabled { opacity: 0.4; cursor: not-allowed; }
