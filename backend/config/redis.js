@@ -1,14 +1,14 @@
 const Redis = require("ioredis");
 
-const pub = new Redis({
-  host: process.env.REDIS_HOST || "127.0.0.1",
-  port: parseInt(process.env.REDIS_PORT) || 6379,
-});
+const redisOptions = {
+  host: process.env.REDIS_HOST,
+  port: parseInt(process.env.REDIS_PORT),
+  password: process.env.REDIS_PASSWORD,
+  // no tls here — Redis Cloud free tier uses plain TCP
+};
 
-const sub = new Redis({
-  host: process.env.REDIS_HOST || "127.0.0.1",
-  port: parseInt(process.env.REDIS_PORT) || 6379,
-});
+const pub = new Redis(redisOptions);
+const sub = new Redis(redisOptions);
 
 pub.on("error", (err) => console.error("Redis pub error:", err.message));
 sub.on("error", (err) => console.error("Redis sub error:", err.message));
